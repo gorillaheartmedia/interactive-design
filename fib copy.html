@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>interactive design — fibonacci gallery</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .scene-wrapper { position: relative; width: 100%; height: 100%; }
+  .scene { position: absolute; inset: 0; display: grid; place-items: center; }
+
+  /* INTRO */
+  .intro {
+    color: #fff;
+    z-index: 3;
+    background: #000;
+    opacity: 1;
+    transition: opacity 2.6s ease-in-out;
+  }
+
+  /* Title typography */
+  .intro h1 {
+    font-size: clamp(7rem, 13vw, 15rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-align: center;
+    color: #fff;
+    line-height: 1.05;
+    text-transform: none;
+    animation: fadeRise 3s ease-out both;
+    filter: drop-shadow(0 0 35px rgba(255,255,255,0.3));
+  }
+
+  .intro h1 span {
+    display: block;
+    font-size: clamp(2.4rem, 5.5vw, 4rem);
+    color: #aaa;
+    letter-spacing: 0.65em;
+    text-transform: uppercase;
+    font-weight: 400;
+    margin-top: 0.45em;
+  }
+
+  @keyframes fadeRise {
+    0% { opacity: 0; transform: translateY(60px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Subtle Enter Button */
+  .enter-btn {
+    position: absolute;
+    bottom: 10%;
+    right: 10%;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    background: transparent;
+    cursor: pointer;
+    animation: pulse 3s infinite ease-in-out;
+    transition: border 0.3s ease;
+  }
+
+  .enter-btn:hover {
+    border-color: #fff;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+  }
+
+  /* Crossfade transition */
+  .fibonacci {
+    background: #000;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 2.6s ease-in-out 2.8s;
+    display: grid;
+    place-items: center;
+  }
+
+  .crossfade .intro { opacity: 0; pointer-events: none; }
+  .crossfade .fibonacci { opacity: 1; z-index: 2; }
+
+  /* Fibonacci canvas */
+  .scale-frame {
+    position: relative;
+    transform-origin: top left;
+  }
+
+  .design-canvas {
+    position: relative;
+    width: 960px;
+    background: #000;
+    border: 8px solid #fff;
+    border-radius: 22px;
+    overflow: hidden;
+    filter: drop-shadow(0 0 25px rgba(255,255,255,0.35));
+  }
+
+  .tile {
+    position: absolute;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+  }
+
+  .tile a {
+    position: absolute;
+    inset: 0;
+    display: block;
+    text-decoration: none;
+  }
+
+  .tile::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: #000;
+    z-index: 2;
+    transition: transform 8s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .reveal-up:hover::before    { transform: translateY(-100%); }
+  .reveal-down:hover::before  { transform: translateY(100%); }
+  .reveal-left:hover::before  { transform: translateX(-100%); }
+  .reveal-right:hover::before { transform: translateX(100%); }
+
+  .boundary {
+    position: absolute;
+    background: #fff;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .caption {
+    margin-top: 14px;
+    color: #ccc;
+    font-size: clamp(.85rem, 2vw, 1rem);
+    text-align: center;
+  }
+
+  /* Hover Title Display */
+  #hoverTitle {
+    position: fixed;
+    bottom: 40%;
+    left: 7%;
+    font-size: clamp(2.3rem, 5.5vw, 4rem);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 3.6s ease, transform 3.6s ease;
+    transform: translateY(50px);
+    z-index: 9999;
+    font-family: 'Inter', system-ui, sans-serif;
+    filter: drop-shadow(0 0 25px rgba(255,255,255,0.3));
+  }
+
+  #hoverTitle.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+<div class="scene-wrapper" id="wrapper">
+  <!-- INTRO -->
+  <section class="scene intro">
+    <h1>
+      interactive
+      <span>DESIGN</span>
+    </h1>
+    <button class="enter-btn" id="enterBtn" aria-label="enter"></button>
+  </section>
+
+  <!-- FIBONACCI -->
+  <section class="scene fibonacci">
+    <div>
+      <div class="scale-frame" id="scaleFrame">
+        <div id="canvas" class="design-canvas"></div>
+      </div>
+    
+    </div>
+  </section>
+
+  <!-- Hover Title Display -->
+  <div id="hoverTitle"></div>
+</div>
+
+<script>
+document.getElementById('enterBtn').addEventListener('click', () => {
+  document.getElementById('wrapper').classList.add('crossfade');
+});
+
+const N_SQUARES = 7;
+const DESIGN_W = 960;
+
+// gallery section links
+const galleryLinks = [
+  { label: "paintings", url: "paintings.html" },
+  { label: "sculptures", url: "sculptures.html" },
+  { label: "drawings", url: "drawings.html" },
+  { label: "music", url: "music.html" },
+  { label: "story", url: "story.html" },
+  { label: "biography", url: "bio.html" },
+  { label: "store", url: "store.html" }
+];
+
+function fibSeq(n) {
+  const f = [0,1,1];
+  for (let i = 3; i <= n; i++) f[i] = f[i-1] + f[i-2];
+  return f;
+}
+
+function getImage(idx, px) {
+  const size = Math.max(1, Math.round(px));
+  return `https://picsum.photos/seed/fib_${idx}_${Math.random().toString(36).slice(2)}/${size}/${size}`;
+}
+
+function buildLayout() {
+  const canvas = document.getElementById('canvas');
+  const frame = document.getElementById('scaleFrame');
+  canvas.innerHTML = '';
+
+  const f = fibSeq(N_SQUARES);
+  const Fn = f[N_SQUARES];
+  const Fn_1 = f[N_SQUARES - 1];
+  const unitsW = Fn + Fn_1;
+  const unitsH = Fn;
+  const unitPx = DESIGN_W / unitsW;
+  const DESIGN_H = unitsH * unitPx;
+  canvas.style.height = `${DESIGN_H}px`;
+  frame.style.width = `${DESIGN_W}px`;
+  frame.style.height = `${DESIGN_H}px`;
+
+  let left = Fn, top = 0, right = unitsW, bottom = unitsH, dir = 0;
+  let linkIndex = 0;
+
+  function placeTile(xUnits, yUnits, sizeUnits, idx, cls) {
+    const x = xUnits * unitPx, y = yUnits * unitPx, s = sizeUnits * unitPx;
+    const d = document.createElement('div');
+    d.className = 'tile ' + cls;
+    d.style.left = x + 'px';
+    d.style.top = y + 'px';
+    d.style.width = s + 'px';
+    d.style.height = s + 'px';
+    d.style.backgroundImage = `url(${getImage(idx, s)})`;
+
+    const link = document.createElement('a');
+    const linkData = galleryLinks[linkIndex % galleryLinks.length];
+    link.href = linkData.url;
+    link.title = linkData.label;
+    link.addEventListener('mouseenter', () => showHoverTitle(linkData.label));
+    link.addEventListener('mouseleave', hideHoverTitle);
+
+    d.appendChild(link);
+    linkIndex++;
+    canvas.appendChild(d);
+  }
+
+  function drawBoundary(x, y, w, h) {
+    const t = 5;
+    if (y > 0) {
+      const topLine = document.createElement('div');
+      topLine.className = 'boundary';
+      topLine.style.left = x + 'px';
+      topLine.style.top = y + 'px';
+      topLine.style.width = w + 'px';
+      topLine.style.height = t + 'px';
+      canvas.appendChild(topLine);
+    }
+    if (x > 0) {
+      const leftLine = document.createElement('div');
+      leftLine.className = 'boundary';
+      leftLine.style.left = x + 'px';
+      leftLine.style.top = y + 'px';
+      leftLine.style.width = t + 'px';
+      leftLine.style.height = h + 'px';
+      canvas.appendChild(leftLine);
+    }
+  }
+
+  // build fibonacci spiral
+  placeTile(0, 0, Fn, N_SQUARES, 'reveal-down');
+  for (let k = N_SQUARES - 1; k >= 1; k--) {
+    const size = f[k];
+    if (dir === 0) {
+      placeTile(left, top, size, k, 'reveal-right');
+      drawBoundary(left * unitPx, top * unitPx, size * unitPx, size * unitPx);
+      top += size;
+    } else if (dir === 1) {
+      placeTile(right - size, top, size, k, 'reveal-down');
+      drawBoundary((right - size) * unitPx, top * unitPx, size * unitPx, size * unitPx);
+      right -= size;
+    } else if (dir === 2) {
+      placeTile(right - size, bottom - size, size, k, 'reveal-left');
+      drawBoundary((right - size) * unitPx, (bottom - size) * unitPx, size * unitPx, size * unitPx);
+      bottom -= size;
+    } else {
+      placeTile(left, bottom - size, size, k, 'reveal-up');
+      drawBoundary(left * unitPx, (bottom - size) * unitPx, size * unitPx, size * unitPx);
+      left += size;
+    }
+    dir = (dir + 1) & 3;
+  }
+
+  applyResponsiveScale();
+}
+
+const hoverTitle = document.getElementById('hoverTitle');
+function showHoverTitle(text) {
+  hoverTitle.textContent = text;
+  hoverTitle.classList.add('visible');
+}
+function hideHoverTitle() {
+  hoverTitle.classList.remove('visible');
+}
+
+function applyResponsiveScale() {
+  const frame = document.getElementById('scaleFrame');
+  const maxW = Math.min(window.innerWidth * 0.9, 960);
+  const scale = maxW / 960;
+  frame.style.transform = `scale(${scale})`;
+}
+
+window.addEventListener('load', buildLayout);
+window.addEventListener('resize', applyResponsiveScale);
+</script>
+</body>
+</html>
